@@ -5,6 +5,7 @@
   requires GHC because it makes use of internal GHC modules.
 -}
 module SumAll.MemLoad (
+  initMemload,
   MemLoad,
   isOverloaded,
   lastOverloaded
@@ -14,7 +15,7 @@ module SumAll.MemLoad (
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM (atomically)
 import Control.Concurrent.STM.TVar (TVar, newTVar, writeTVar, readTVar)
-import Control.Monad (when, unless)
+import Control.Monad (when, void)
 import Data.Int (Int64)
 import Data.Time.Clock (UTCTime, getCurrentTime)
 import GHC.Stats (GCStats(GCStats, currentBytesUsed), getGCStats,
@@ -49,14 +50,13 @@ initMemload maxMem = do
         lastOverloadedT <- atomically (newTVar Nothing)
         isOverloadedT <- atomically (newTVar False)
         let memload = MemLoad {lastOverloadedT, isOverloadedT, maxMem}
-        forkIO (checkPeriodically memload)
+        (void . forkIO) (checkPeriodically memload)
         return (Just memload)
       else return Nothing
   where
     checkPeriodically memload@MemLoad {
           lastOverloadedT,
-          isOverloadedT,
-          maxMem
+          isOverloadedT
         }
       = do
         GCStats {currentBytesUsed} <- getGCStats
